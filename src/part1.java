@@ -30,48 +30,39 @@ public class part1 extends Configured implements Tool{
 
 
 
-    public static class Map extends Mapper<Object, Text, Text, MapWritable>
+    public static class Map extends Mapper<Object, Text, Text, Text>
     {
-        MapWritable map_out = new MapWritable();
-        Text textKey = new Text();
-
         @Override
         public void map(Object key, Text value, org.apache.hadoop.mapreduce.Mapper.Context output) throws IOException, InterruptedException {
 
             String[] words = value.toString().split(",");
-            map_out.put(new IntWritable(1),new IntWritable(Integer.parseInt(words[2])));
-            map_out.put(new IntWritable(2),new IntWritable(Integer.parseInt(words[3])));
-            map_out.put(new IntWritable(3),new IntWritable(Integer.parseInt(words[4])));
-            textKey.set(words[5]);
 
-            System.out.println(words[0]+' '+words[1]+' '+words[2]+' '+words[3]+' '+words[4]+' '+words[5]);
+            Text map_val = new Text(words[2]+','+words[3]+','+words[4]);
 
-            output.write(textKey,map_out);
+            output.write(new Text(words[5]),map_val);
         }
 
     }
 
-    public static class Reduce extends Reducer<Text, MapWritable, Text, Text>
+    public static class Reduce extends Reducer<Text, Text, Text, Text>
     {
-        Text reduce_out = new Text();
+
 
         @Override
-        public void reduce(Text key, Iterable<MapWritable> values, Context output) throws IOException, InterruptedException {
+        public void reduce(Text key, Iterable<Text> values, Context output) throws IOException, InterruptedException {
 
             int impression = 0, click = 0, conversion = 0;
 
-            for (MapWritable value : values) {
-                int i = ((IntWritable) value.get(new IntWritable(1))).get();
-                int j = ((IntWritable) value.get(new IntWritable(2))).get();
-                int k = ((IntWritable) value.get(new IntWritable(3))).get();
+            for (Text value : values) {
+                String[] words = value.toString().split(",");
 
-                impression = impression+i;
-                click = click + j;
-                conversion = conversion + k;
+                impression = impression + Integer.parseInt(words[0]);
+                click = click + Integer.parseInt(words[1]);
+                conversion = conversion + Integer.parseInt(words[2]);
+
             }
+            Text reduce_out = new Text(impression+","+click+","+conversion);
 
-            reduce_out.set(impression+"\t"+click+"\t"+conversion);
-            System.out.println(reduce_out);
             output.write(key,reduce_out);
         }
 
@@ -92,7 +83,10 @@ public class part1 extends Configured implements Tool{
             System.exit(-1);
         }
 
-        Job job = Job.getInstance(new Configuration());
+        Configuration conf = new Configuration();
+        conf.set("mapred.textoutputformat.separator", ",");
+
+        Job job = Job.getInstance(conf);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
